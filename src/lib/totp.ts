@@ -1,3 +1,4 @@
+import { TOTP } from 'totp-generator'
 import { AppError } from './errors.ts'
 
 export type Algorithm = 'SHA-1' | 'SHA-256' | 'SHA-512'
@@ -23,24 +24,6 @@ export function normalizeSecret(value: string): string {
     throw new AppError('invalidSecretBits')
   }
   return secret
-}
-
-export function decodeBase32(value: string): Uint8Array<ArrayBuffer> {
-  const secret = normalizeSecret(value)
-  const bytes = new Uint8Array(Math.floor(secret.length * 5 / 8))
-  let buffer = 0
-  let bits = 0
-  let index = 0
-  for (const character of secret) {
-    buffer = (buffer << 5) | 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(character)
-    bits += 5
-    if (bits >= 8) {
-      bits -= 8
-      bytes[index++] = (buffer >>> bits) & 255
-      buffer &= (1 << bits) - 1
-    }
-  }
-  return bytes
 }
 
 export function validateAccount(input: AccountInput): AccountInput {
@@ -80,13 +63,13 @@ export function parseTotpInput(value: string): AccountInput {
   return validateAccount({ issuer: '', name: 'OTP', secret: input, algorithm: 'SHA-1', digits: 6, period: 30 })
 }
 
-export async function generateTimeWindow(account: AccountInput, now = Date.now()): Promise<string[]> {
+export async function generateTimeWindow(account: AccountInput, now: number): Promise<string[]> {
   return Promise.all([-30000, 0, 30000].map(offset => generateTotp(account, now + offset)))
 }
 
 export type TotpCodeCache = Record<string, string>
 
-export async function prepareTimeWindow(account: AccountInput, now = Date.now()): Promise<TotpCodeCache> {
+export async function prepareTimeWindow(account: AccountInput, now: number): Promise<TotpCodeCache> {
   const counters = new Set([-30, 0, 30].flatMap(offset => {
     const counter = Math.floor((now / 1000 + offset) / account.period)
     return [counter, counter + 1]
@@ -102,13 +85,14 @@ export function readTimeWindow(cache: TotpCodeCache, account: AccountInput, now:
   return codes.every((code): code is string => typeof code === 'string') ? codes : null
 }
 
-export async function generateTotp(account: AccountInput, now = Date.now()): Promise<string> {
+export async function generateTotp(account: AccountInput, now: number): Promise<string> {
   if (!globalThis.crypto?.subtle) throw new AppError('cryptoUnavailable')
-  const key = await crypto.subtle.importKey('raw', decodeBase32(account.secret), { name: 'HMAC', hash: account.algorithm }, false, ['sign'])
-  const message = new ArrayBuffer(8)
-  new DataView(message).setBigUint64(0, BigInt(Math.floor(now / 1000 / account.period)))
-  const digest = new Uint8Array(await crypto.subtle.sign('HMAC', key, message))
-  const offset = digest[digest.length - 1]! & 15
-  const binary = ((digest[offset]! & 127) << 24) | (digest[offset + 1]! << 16) | (digest[offset + 2]! << 8) | digest[offset + 3]!
-  return String(binary % (10 ** account.digits)).padStart(account.digits, '0')
+  const { otp } = await TOTP.generate(normalizeSecret(account.secret), {
+    algorithm: account.algorithm,
+    digits: account.digits,
+    period: account.period,
+    timestamp: now,
+    explicitZeroPad: true,
+  })
+  return otp
 }

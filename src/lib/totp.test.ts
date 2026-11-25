@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { getProviderDomain, getProviderLogoUrl } from './provider.ts'
-import { decodeBase32, generateTotp, generateTimeWindow, prepareTimeWindow, readTimeWindow, normalizeSecret, parseOtpAuth, parseTotpInput, validateAccount, type AccountInput, type Algorithm } from './totp.ts'
+import { generateTotp, generateTimeWindow, prepareTimeWindow, readTimeWindow, normalizeSecret, parseOtpAuth, parseTotpInput, validateAccount, type AccountInput, type Algorithm } from './totp.ts'
 
 function base32(value: string) {
   const bits = [...new TextEncoder().encode(value)].map(byte => byte.toString(2).padStart(8, '0')).join('')
@@ -29,7 +29,6 @@ for (const [time, ...expected] of vectors) {
 }
 test('Base32 normalizes spaces, case and padding and rejects malformed input', () => {
   assert.equal(normalizeSecret(' mz xw6=== '), 'MZXW6')
-  assert.equal(new TextDecoder().decode(decodeBase32('MZXW6')), 'foo')
   for (const bad of ['', 'ABC01', 'A', 'MZ', 'MY=ABC']) assert.throws(() => normalizeSecret(bad))
 })
 test('URI reads encoded labels and custom TOTP parameters', () => {

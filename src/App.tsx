@@ -14,6 +14,7 @@ import { getErrorCode, type ErrorCode } from '@/lib/errors'
 import { generateTimeWindow, prepareTimeWindow, readTimeWindow, parseTotpInput, type AccountInput, type TotpCodeCache } from '@/lib/totp'
 import { readQrImage } from '@/lib/qr'
 import { readClipboardInput } from '@/lib/clipboard'
+import { now as clockNow, syncClock } from '@/lib/clock'
 import type { Language, Theme } from '@/lib/i18n'
 
 type Result = { source: string; cache: TotpCodeCache; codes: string[] }
@@ -26,7 +27,8 @@ function App() {
   const { language, setLanguage, theme, setTheme, t } = usePreferences()
   const [input, setInput] = useState('')
   const [concealed, setConcealed] = useState(false)
-  const [now, setNow] = useState(Date.now)
+  const [clockMs, setNow] = useState(clockNow)
+  const [clockFailed, setClockFailed] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState<ErrorCode | null>(null)
   const [reading, setReading] = useState(false)
@@ -45,7 +47,8 @@ function App() {
     try { return { account: parseTotpInput(value), error: null } }
     catch (cause) { return { account: null, error: getErrorCode(cause) } }
   }, [value])
-  const account = parsed.account
+  const now = clockMs ?? 0
+  const account = clockMs === null ? null : parsed.account
   const signature = account ? windowSignature(account, now) : ''
   const codes = !error && account && result?.source === value ? readTimeWindow(result.cache, account, now) ?? result.codes : null
   const remaining = account ? account.period - Math.floor(now / 1000) % account.period : 30
@@ -102,30 +105,39 @@ function App() {
   }
 
   useEffect(() => {
-    try { localStorage.removeItem('totp.accounts.v1') } catch { /* Storage is optional and never used for input. */ }
-    const timer = setInterval(() => setNow(Date.now()), 250)
-    const refresh = () => setNow(Date.now())
+    const tick = () => setNow(clockNow())
+    const timer = setInterval(tick, 250)
+    let retry: number | undefined
+    const sync = () => {
+      window.clearTimeout(retry)
+      syncClock().then(() => { setClockFailed(false); tick() }, () => {
+        if (clockNow() === null) { setClockFailed(true); retry = window.setTimeout(sync, 3000) }
+      })
+    }
+    const refresh = () => { if (document.visibilityState === 'visible') sync() }
+    sync()
+    const resync = setInterval(refresh, 600_000)
     const cancelQr = () => { qrRequest.current++ }
     document.addEventListener('visibilitychange', refresh)
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', refresh); cancelQr() }
+    return () => { clearInterval(timer); clearInterval(resync); window.clearTimeout(retry); document.removeEventListener('visibilitychange', refresh); cancelQr() }
   }, [])
 
   useEffect(() => {
     let active = true
     const timer = setTimeout(async () => {
       if (!account) {
-        if (active) { setResult(null); if (value) setError(parsed.error) }
+        if (active) { setResult(null); if (value) setError(parsed.error ?? (parsed.account && clockFailed ? 'clockUnavailable' : null)) }
         return
       }
       try {
-        const timestamp = Date.now()
+        const timestamp = clockNow()!
         const cache = await prepareTimeWindow(account, timestamp)
         const next = readTimeWindow(cache, account, timestamp)!
         if (active) { setResult({ source: value, cache, codes: next }); setError(null) }
       } catch (cause) { if (active) { setResult(null); setError(getErrorCode(cause)) } }
     }, 200)
     return () => { active = false; clearTimeout(timer) }
-  }, [account, value, signature, parsed.error])
+  }, [account, value, signature, parsed.error, parsed.account, clockFailed])
 
   useEffect(() => {
     const paste = (event: ClipboardEvent) => {
@@ -169,10 +181,10 @@ function App() {
     if (!account) return
     const request = qrRequest.current
     try {
-      let timestamp = Date.now()
+      let timestamp = clockNow()!
       let fresh = await generateTimeWindow(account, timestamp)
-      if (Math.floor((timestamp / 1000 + offsets[index]!) / account.period) !== Math.floor((Date.now() / 1000 + offsets[index]!) / account.period)) {
-        timestamp = Date.now()
+      if (Math.floor((timestamp / 1000 + offsets[index]!) / account.period) !== Math.floor((clockNow()! / 1000 + offsets[index]!) / account.period)) {
+        timestamp = clockNow()!
         fresh = await generateTimeWindow(account, timestamp)
       }
       if (request !== qrRequest.current) return

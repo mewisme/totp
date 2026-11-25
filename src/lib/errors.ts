@@ -1,7 +1,7 @@
 export const errorCodes = [
   'invalidSecret', 'invalidSecretBits', 'missingName', 'nameTooLong', 'unsupportedAlgorithm',
   'unsupportedDigits', 'invalidPeriod', 'invalidUri', 'unsupportedUri', 'invalidLabel',
-  'issuerMismatch', 'cryptoUnavailable', 'imageRequired', 'imageTooLarge', 'imageUnreadable',
+  'issuerMismatch', 'cryptoUnavailable', 'clockUnavailable', 'imageRequired', 'imageTooLarge', 'imageUnreadable',
   'canvasUnavailable', 'qrNotFound', 'unexpected',
 ] as const
 export type ErrorCode = typeof errorCodes[number]
