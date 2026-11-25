@@ -212,6 +212,9 @@ importers:
       shadcn:
         specifier: ^4.23.0
         version: 4.23.0(supports-color@10.2.2)
+      totp-generator:
+        specifier: ^2.0.1
+        version: 2.0.1
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -1897,6 +1900,9 @@ packages:
   jsqr@1.4.0:
     resolution: {integrity: sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==}
 
+  jssha@3.3.3:
+    resolution: {integrity: sha512-skZBbG6E/w6L9++oenmL01B/cKANNb4xUr5LZii6tLNdcwt09ASie7T65VJ4SL0AmNGflF483X8+Gv4dJPGCxg==}
+
   kleur@3.0.3:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
@@ -2358,6 +2364,9 @@ packages:
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
+
+  totp-generator@2.0.1:
+    resolution: {integrity: sha512-50DiKmv9zKTPzCgWOqQYVBMvxh+tpL9O3IUFIqzGUlFXzJyb/IQZac8bonXudvLbfuDY8laZ9qTDX+yAvTBNSQ==}
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
@@ -3876,6 +3885,8 @@ snapshots:
 
   jsqr@1.4.0: {}
 
+  jssha@3.3.3: {}
+
   kleur@3.0.3: {}
 
   kleur@4.1.5: {}
@@ -4332,6 +4343,10 @@ snapshots:
   to-regex-range@5.0.1:
     dependencies:
       is-number: 7.0.0
+
+  totp-generator@2.0.1:
+    dependencies:
+      jssha: 3.3.3
 
   tr46@0.0.3: {}
 
